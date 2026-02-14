@@ -1,11 +1,27 @@
+use lc3_vm::memory::{MAX_MEMORY, read_image};
+use lc3_vm::platform::{self, TerminalGuard};
 use std::env;
 use std::process;
-use lc3_vm::memory::{read_image, MAX_MEMORY};
 
+enum Instructions {
+    R0 = 0,
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    R6,
+    R7,
+    RPC,
+    RCOND,
+    RCOUNT,
+}
 
 fn main() {
+    let _guard = TerminalGuard;
+
     let args: Vec<String> = env::args().collect();
-    let mut memory = [0u16;MAX_MEMORY];
+    let mut memory = [0u16; MAX_MEMORY];
     if args.len() < 2 {
         println!("lc3 [image-file1] ...");
         process::exit(2);
@@ -17,5 +33,4 @@ fn main() {
             process::exit(1);
         }
     }
-
 }
