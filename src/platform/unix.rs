@@ -20,7 +20,7 @@ impl TerminalGuard {
             let original = terminal_io;
             terminal_io.c_iflag &= !(ICANON | ECHO);
             tcsetattr(STDIN_FILENO, TCSANOW, &terminal_io);
-                return TerminalGuard { original };
+            return TerminalGuard { original };
         }
     }
 }
@@ -34,6 +34,12 @@ impl Drop for TerminalGuard {
 }
 
 pub struct PlatformKeyboard;
+
+impl PlatformKeyboard {
+    pub fn new() -> Self {
+        Self
+    }
+}
 
 impl Keyboard for PlatformKeyboard {
     fn check_key(&mut self) -> Option<u16> {
@@ -50,19 +56,20 @@ impl Keyboard for PlatformKeyboard {
 }
 
 unsafe fn check_key_internal() -> bool {
-    let mut readfds: fd_set = mem::zeroed();
-    FD_ZERO(&mut readfds);
-    FD_SET(STDIN_FILENO, &mut readfds);
-    let mut timeout = timeval {
-        tv_sec: 0,
-        tv_usec: 0,
-    };
-
-    return select(
-        STDIN_FILENO + 1,
-        &mut readfds,
-        ptr::null_mut(),
-        ptr::null_mut(),
-        &mut timeout,
-    ) != 0;
+    unsafe {
+        let mut readfds: fd_set = mem::zeroed();
+        FD_ZERO(&mut readfds);
+        FD_SET(STDIN_FILENO, &mut readfds);
+        let mut timeout = timeval {
+            tv_sec: 0,
+            tv_usec: 0,
+        };
+        return select(
+            STDIN_FILENO + 1,
+            &mut readfds,
+            ptr::null_mut(),
+            ptr::null_mut(),
+            &mut timeout,
+        ) != 0;
+    }
 }

@@ -7,9 +7,9 @@ pub const MAX_MEMORY: usize = 1 << 16;
 pub const MR_KBSR: usize = 0xFE00;
 pub const MR_KBDR: usize = 0xFE02;
 
-pub fn read_image(path: &str, memory: &mut [u16; MAX_MEMORY]) -> io::Result<()> {
+pub fn read_image(path: &str, vm: &mut VM) -> io::Result<()> {
     let mut file = File::open(path)?;
-    read_image_file(&mut file, memory)
+    read_image_file(&mut file, &mut vm.memory)
 }
 
 fn read_image_file(file: &mut File, memory: &mut [u16; MAX_MEMORY]) -> io::Result<()> {

@@ -44,7 +44,14 @@ impl Drop for TerminalGuard {
         }
     }
 }
+
 pub struct PlatformKeyboard;
+
+impl PlatformKeyboard {
+    pub fn new() -> Self {
+        return Self;
+    }
+}
 
 impl Keyboard for PlatformKeyboard {
     fn check_key(&mut self) -> Option<u16> {
