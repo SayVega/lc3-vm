@@ -1,5 +1,5 @@
 use lc3_vm::memory::{MAX_MEMORY, read_image};
-use lc3_vm::platform::{self, TerminalGuard};
+use lc3_vm::platform::TerminalGuard;
 use std::env;
 use std::process;
 
@@ -16,9 +16,10 @@ enum Instructions {
     RCOND,
     RCOUNT,
 }
+pub const PC_START: usize = 0x3000;
 
 fn main() {
-    let _guard = TerminalGuard;
+    let _terminal = TerminalGuard::new();
 
     let args: Vec<String> = env::args().collect();
     let mut memory = [0u16; MAX_MEMORY];

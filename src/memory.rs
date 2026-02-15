@@ -1,4 +1,4 @@
-use crate::Keyboard;
+use crate::VM;
 use std::fs::File;
 use std::io::{self, Read};
 
@@ -34,17 +34,21 @@ fn read_image_file(file: &mut File, memory: &mut [u16; MAX_MEMORY]) -> io::Resul
     return Ok(());
 }
 
-pub fn mem_write(memory: &mut [u16; MAX_MEMORY], address: usize, value: u16) {
-    memory[address] = value;
-}
-
-pub fn mem_read(memory: &mut [u16; MAX_MEMORY], address: u16, keyboard: &mut dyn Keyboard) -> u16 {
-    let index_address = address as usize;
-    if index_address == MR_KBSR {
-        if let Some(key) = keyboard.check_key() {
-            memory[MR_KBSR] = 1 << 15;
-            memory[MR_KBSR] = key;
-        }
+impl VM {
+    pub fn mem_write(&mut self, address: u16, value: u16) {
+        let index = address as usize;
+        self.memory[index] = value;
     }
-    return memory[index_address];
+    pub fn mem_read(&mut self, address: u16) -> u16 {
+        let index = address as usize;
+        if index == MR_KBSR {
+            if let Some(key) = self.keyboard.check_key() {
+                self.memory[MR_KBSR] = 1 << 15;
+                self.memory[MR_KBDR] = key;
+            }
+        } else {
+            self.memory[MR_KBSR] = 0;
+        }
+        return self.memory[index];
+    }
 }

@@ -1,11 +1,9 @@
 #[cfg(unix)]
 mod unix;
 #[cfg(unix)]
-pub use unix::*;
+pub use unix::TerminalGuard;
 
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
-pub use windows::*;
-
-pub struct TerminalGuard;
+pub use windows::TerminalGuard;
