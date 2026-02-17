@@ -24,7 +24,7 @@ jobs:
     needs: fmt
     strategy:
       matrix:
-        os: [ubutu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{matrix.os}}
 
     steps:

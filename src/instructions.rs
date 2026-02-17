@@ -17,7 +17,7 @@ pub enum Registers {
 }
 
 fn sign_extend(x: u16, bit_count: u8) -> u16 {
-    if (x >> (bit_count - 1)) & 1 == 1 {
+    if (x >> (bit_count - 1)) & 1 == 1 && bit_count < 16 {
         return x | (0xFFFF << bit_count);
     } else {
         return x;
@@ -271,4 +271,207 @@ fn trap_putsp(vm: &mut VM) {
 fn trap_halt(vm: &mut VM) {
     println!("HALT");
     vm.running = false;
+}
+
+mod tests {
+    use super::*;
+    mod helpers {
+        use super::*;
+        #[test]
+        fn test_sign_extend_zero() {
+            assert_eq!(sign_extend(0b00000, 5), 0);
+        }
+
+        #[test]
+        fn test_sign_extend_negative() {
+            assert_eq!(sign_extend(0b10000, 5), 0xFFF0);
+        }
+
+        #[test]
+        fn test_sign_extend_positive() {
+            assert_eq!(sign_extend(0b01111, 5), 15);
+        }
+
+        #[test]
+        fn test_sign_extend_full_width() {
+            assert_eq!(sign_extend(0x8000, 16), 0x8000);
+        }
+
+        #[test]
+        fn test_sign_extend_one_bit() {
+            assert_eq!(sign_extend(0b0, 1), 0);
+            assert_eq!(sign_extend(0b1, 1), 0xFFFF);
+        }
+
+        #[test]
+        fn update_flags_zero() {
+            let mut vm = VM::new();
+            vm.registers[1] = 0;
+            vm.update_flags(1);
+            assert_eq!(vm.registers[COND as usize], 1 << 1);
+        }
+
+        #[test]
+        fn update_flags_positive() {
+            let mut vm = VM::new();
+            vm.registers[1] = 5;
+            vm.update_flags(1);
+            assert_eq!(vm.registers[COND as usize], 1 << 0);
+        }
+
+        #[test]
+        fn update_flags_negative() {
+            let mut vm = VM::new();
+            vm.registers[1] = 0x8000;
+            vm.update_flags(1);
+            assert_eq!(vm.registers[COND as usize], 1 << 2);
+        }
+
+        #[test]
+        fn update_flags_overwrites_previous() {
+            let mut vm = VM::new();
+            vm.registers[COND as usize] = 0xFFFF;
+            vm.registers[1] = 0;
+            vm.update_flags(1);
+            assert_eq!(vm.registers[COND as usize], 1 << 1);
+        }
+    }
+    mod opcodes {
+        use super::*;
+        #[test]
+        fn br_forward_jump() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            vm.registers[COND as usize] = 1 << 0;
+            let instr = (0b001 << 9) | 0b000000011;
+            op_br(instr, &mut vm);
+            assert_eq!(vm.registers[PC as usize], 0x3003);
+        }
+
+        #[test]
+        fn br_backward_jump() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3005;
+            vm.registers[COND as usize] = 1 << 0;
+            let offset_minus_two = 0b111111110;
+            let instr = (0b001 << 9) | offset_minus_two;
+            op_br(instr, &mut vm);
+            assert_eq!(vm.registers[PC as usize], 0x3003);
+        }
+
+        #[test]
+        fn br_zero_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            vm.registers[COND as usize] = 1 << 0;
+            let instr = 0b001 << 9;
+            op_br(instr, &mut vm);
+            assert_eq!(vm.registers[PC as usize], 0x3000);
+        }
+
+        #[test]
+        fn br_no_jump_when_flag_not_set() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            vm.registers[COND as usize] = 1 << 1;
+            let instr = (0b001 << 9) | 0b000000011;
+            op_br(instr, &mut vm);
+            assert_eq!(vm.registers[PC as usize], 0x3000);
+        }
+
+        #[test]
+        fn add_register_mode() {
+            let mut vm = VM::new();
+            vm.registers[1] = 5;
+            vm.registers[2] = 3;
+            let instr = (0b0001 << 12) | (0b000 << 9) | (0b001 << 6) | 0b010;
+            op_add(instr, &mut vm);
+            assert_eq!(vm.registers[0], 8);
+        }
+
+        #[test]
+        fn add_immediate_mode() {
+            let mut vm = VM::new();
+            vm.registers[1] = 5;
+            let instr = (0b0001 << 12) | (0b000 << 9) | (0b001 << 6) | (1 << 5) | 0b00011;
+            op_add(instr, &mut vm);
+            assert_eq!(vm.registers[0], 8);
+        }
+
+        #[test]
+        fn add_sets_negative_flag() {
+            let mut vm = VM::new();
+            vm.registers[1] = 0x8000;
+            vm.registers[2] = 0;
+            let instr = (0b0001 << 12) | (0b000 << 9) | (0b001 << 6) | 0b010;
+            op_add(instr, &mut vm);
+            assert_eq!(vm.registers[COND as usize], 1 << 2);
+        }
+        #[test]
+        fn add_immediate_negative() {
+            let mut vm = VM::new();
+            vm.registers[1] = 5;
+            let instr = (0b0001 << 12) | (0b000 << 9) | (0b001 << 6) | (1 << 5) | 0b11111;
+            op_add(instr, &mut vm);
+            assert_eq!(vm.registers[0], 4);
+        }
+        #[test]
+        fn add_overflow_wraps() {
+            let mut vm = VM::new();
+            vm.registers[1] = 0xFFFF;
+            vm.registers[2] = 1;
+            let instr = (0b0001 << 12) | (0b000 << 9) | (0b001 << 6) | 0b010;
+            op_add(instr, &mut vm);
+            assert_eq!(vm.registers[0], 0);
+        }
+        #[test]
+        fn ld_positive_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            let instr = (0b010 << 12) | (0b000 << 9) | 0b000000001;
+            vm.mem_write(0x3001, 42);
+            op_ld(instr, &mut vm);
+            assert_eq!(vm.registers[0], 42);
+        }
+
+        #[test]
+        fn ld_negative_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            let instr = (0b010 << 12) | (0b000 << 9) | 0b111111111;
+            vm.mem_write(0x2FFF, 42);
+            op_ld(instr, &mut vm);
+            assert_eq!(vm.registers[0], 42);
+        }
+
+        #[test]
+        fn ld_positive_max_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            let instr = (0b010 << 12) | (0b000 << 9) | 0b011111111;
+            vm.mem_write(0x30FF, 42);
+            op_ld(instr, &mut vm);
+            assert_eq!(vm.registers[0], 42);
+        }
+
+        #[test]
+        fn ld_negative_min_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            let instr = (0b000 << 12) | (0b000 << 9) | 0b100000000;
+            vm.mem_write(0x2F00, 42);
+            op_ld(instr, &mut vm);
+            assert_eq!(vm.registers[0], 42);
+        }
+
+        #[test]
+        fn ld_sets_zero_flag() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            let instr = (0b010 << 12) | (0b000 << 9) | 0b000000001;
+            vm.mem_write(0x3001, 0);
+            op_ld(instr, &mut vm);
+            assert_eq!(vm.registers[COND as usize], 1 << 1);
+        }
+    }
 }
