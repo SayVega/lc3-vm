@@ -219,7 +219,7 @@ fn trap_getc(vm: &mut VM) {
 
 fn trap_out(vm: &mut VM) {
     let ch = vm.registers[R0 as usize];
-    print!("{ch}");
+    print!("{}", (ch as u8) as char);
     io::stdout().flush().unwrap();
 }
 
@@ -235,6 +235,8 @@ fn trap_puts(vm: &mut VM) {
         print!("{}", (ch as u8) as char);
         address = address.wrapping_add(1);
     }
+
+    io::stdout().flush().unwrap();
 }
 
 fn trap_in(vm: &mut VM) {
@@ -269,7 +271,6 @@ fn trap_putsp(vm: &mut VM) {
 }
 
 fn trap_halt(vm: &mut VM) {
-    println!("HALT");
     vm.running = false;
 }
 

@@ -1,7 +1,7 @@
 #[cfg(unix)]
 use crate::Keyboard;
 use libc::{
-    ECHO, FD_SET, FD_ZERO, ICANON, STDIN_FILENO, TCSANOW, fd_set, select, tcgetattr, tcsetattr,
+    ECHO, FD_SET, FD_ZERO, ICANON, STDIN_FILENO, TCSANOW, VMIN, VTIME, fd_set, select, tcgetattr, tcsetattr,
     termios, timeval,
 };
 use std::io::{self, Read};
@@ -18,7 +18,9 @@ impl TerminalGuard {
             let mut terminal_io: termios = mem::zeroed();
             tcgetattr(STDIN_FILENO, &mut terminal_io);
             let original = terminal_io;
-            terminal_io.c_iflag &= !(ICANON | ECHO);
+            terminal_io.c_lflag &= !(ICANON | ECHO);
+            terminal_io.c_cc[VMIN] = 1;
+            terminal_io.c_cc[VTIME] = 0;
             tcsetattr(STDIN_FILENO, TCSANOW, &terminal_io);
             return TerminalGuard { original };
         }

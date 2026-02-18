@@ -1,4 +1,5 @@
 use crate::VM;
+use crate::instructions::Registers::*;
 use std::fs::File;
 use std::io::{self, Read};
 
@@ -9,13 +10,17 @@ pub const MR_KBDR: usize = 0xFE02;
 
 pub fn read_image(path: &str, vm: &mut VM) -> io::Result<()> {
     let mut file = File::open(path)?;
-    read_image_file(&mut file, &mut vm.memory)
+
+    let mut origin_bytes = [0u8; 2];
+    file.read_exact(&mut origin_bytes)?;
+    let origin = u16::from_be_bytes(origin_bytes) as usize;
+
+    vm.registers[PC as usize] = origin as u16;
+
+    read_image_file(&mut file, &mut vm.memory, origin)
 }
 
-fn read_image_file(file: &mut File, memory: &mut [u16; MAX_MEMORY]) -> io::Result<()> {
-    let mut origin = [0u8; 2];
-    file.read_exact(&mut origin)?;
-    let origin = u16::from_be_bytes(origin) as usize;
+fn read_image_file(file: &mut File, memory: &mut [u16; MAX_MEMORY], origin: usize) -> io::Result<()> {
 
     let max_read = MAX_MEMORY - origin;
 
