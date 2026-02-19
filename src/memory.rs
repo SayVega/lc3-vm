@@ -20,8 +20,11 @@ pub fn read_image(path: &str, vm: &mut VM) -> io::Result<()> {
     read_image_file(&mut file, &mut vm.memory, origin)
 }
 
-fn read_image_file(file: &mut File, memory: &mut [u16; MAX_MEMORY], origin: usize) -> io::Result<()> {
-
+fn read_image_file(
+    file: &mut File,
+    memory: &mut [u16; MAX_MEMORY],
+    origin: usize,
+) -> io::Result<()> {
     let max_read = MAX_MEMORY - origin;
 
     for i in 0..max_read {
