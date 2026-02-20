@@ -1,6 +1,8 @@
-use crate::memory::{read_image, MAX_MEMORY};
-use crate::platform::PlatformKeyboard;
+use crate::instructions::Registers::COND;
 use crate::instructions::*;
+use crate::memory::{MAX_MEMORY, read_image};
+use crate::platform::PlatformKeyboard;
+use std::io::{self, Write};
 
 pub const REGISTER_COUNT: usize = 10;
 
@@ -14,21 +16,42 @@ pub trait Keyboard {
         }
     }
 }
+
+pub struct StdoutDevice;
+
+pub trait TerminalOutput {
+    fn write_char(&mut self, c: u8);
+    fn flush(&mut self);
+}
+
+impl TerminalOutput for StdoutDevice {
+    fn write_char(&mut self, c: u8) {
+        print!("{}", c as char);
+    }
+    fn flush(&mut self) {
+        let _ = io::stdout().flush();
+    }
+}
+
 pub struct VM {
     pub memory: [u16; MAX_MEMORY],
     pub registers: [u16; REGISTER_COUNT],
     pub keyboard: Box<dyn Keyboard>,
+    pub output: Box<dyn TerminalOutput>,
     pub running: bool,
 }
 
 impl VM {
     pub fn new() -> Self {
-        Self {
+        let mut vm = Self {
             memory: [0; MAX_MEMORY],
             registers: [0; REGISTER_COUNT],
-            running: true,
             keyboard: Box::new(PlatformKeyboard::new()),
-        }
+            output: Box::new(StdoutDevice),
+            running: true,
+        };
+        vm.registers[COND as usize] = FL_Z;
+        vm
     }
     pub fn load_image(&mut self, path: &str) -> std::io::Result<()> {
         read_image(path, self)
@@ -70,14 +93,15 @@ mod tests {
     use super::*;
     use crate::memory::{MR_KBDR, MR_KBSR};
     struct MockKeyboard {
-            key: Option<u16>,
-        }
+        key: Option<u16>,
+    }
 
     impl Keyboard for MockKeyboard {
         fn check_key(&mut self) -> Option<u16> {
-            self.key 
+            self.key
         }
     }
+
     #[test]
     fn run_executes_instruction_cycle_and_halts() {
         let mut vm = VM::new();
@@ -97,7 +121,7 @@ mod tests {
         let origin = 0x3000;
         vm.registers[Registers::PC as usize] = origin as u16;
         vm.registers[1] = 0;
-        vm.memory[origin] = 0x1261;     // ADD R1, R1, #1
+        vm.memory[origin] = 0x1261; // ADD R1, R1, #1
         vm.memory[origin + 1] = 0x1262; // ADD R1, R1, #2
         vm.memory[origin + 2] = 0xF025; // HALT
         vm.run();
@@ -111,15 +135,18 @@ mod tests {
         let mut vm = VM::new();
         let origin = 0x3000;
         vm.registers[Registers::PC as usize] = origin as u16;
-        vm.memory[origin] = 0xD000; 
+        vm.memory[origin] = 0xD000;
         vm.run();
     }
     #[test]
     fn vm_initializes_with_clean_state() {
         let vm = VM::new();
         assert_eq!(vm.memory.iter().all(|&x| x == 0), true);
-        assert_eq!(vm.registers.iter().all(|&x| x == 0), true);
         assert_eq!(vm.running, true);
+        for reg in 0..(COND as usize) {
+            assert_eq!(vm.registers[reg], 0);
+        }
+        assert_eq!(vm.registers[COND as usize], 1 << 1);
     }
     #[test]
     fn reading_kbsr_without_input_maintains_state() {

@@ -2,6 +2,7 @@ use crate::VM;
 use Registers::*;
 use std::io::{self, Write};
 
+#[allow(dead_code)]
 pub enum Registers {
     R0 = 0,
     R1,
@@ -16,9 +17,9 @@ pub enum Registers {
     COUNT,
 }
 
-const FL_P: u16 = 1 << 0;
-const FL_Z: u16 = 1 << 1;
-const FL_N: u16 = 1 << 2;
+pub const FL_P: u16 = 1 << 0;
+pub const FL_Z: u16 = 1 << 1;
+pub const FL_N: u16 = 1 << 2;
 
 fn sign_extend(x: u16, bit_count: u8) -> u16 {
     if (x >> (bit_count - 1)) & 1 == 1 && bit_count < 16 {
@@ -216,25 +217,22 @@ fn trap_getc(vm: &mut VM) {
 }
 
 fn trap_out(vm: &mut VM) {
-    let ch = vm.registers[R0 as usize];
-    print!("{}", (ch as u8) as char);
-    io::stdout().flush().unwrap();
+    let ch = (vm.registers[R0 as usize] & 0x00FF) as u8;
+    vm.output.write_char(ch);
+    vm.output.flush();
 }
 
 fn trap_puts(vm: &mut VM) {
     let mut address = vm.registers[R0 as usize];
-
     loop {
         let ch = vm.mem_read(address);
         if ch == 0 {
             break;
         }
-
-        print!("{}", (ch as u8) as char);
+        vm.output.write_char((ch & 0x00FF) as u8);
         address = address.wrapping_add(1);
     }
-
-    io::stdout().flush().unwrap();
+    vm.output.flush();
 }
 
 fn trap_in(vm: &mut VM) {
@@ -258,14 +256,14 @@ fn trap_putsp(vm: &mut VM) {
         }
 
         let ch1 = (word & 0x00FF) as u8;
-        print!("{}", ch1 as char);
+        vm.output.write_char(ch1);
         let ch2 = (word >> 8) as u8;
         if ch2 != 0 {
-            print!("{}", ch2 as char);
+            vm.output.write_char(ch2);
         }
         address = address.wrapping_add(1);
     }
-    io::stdout().flush().unwrap();
+    vm.output.flush();
 }
 
 fn trap_halt(vm: &mut VM) {
@@ -1060,7 +1058,6 @@ mod tests {
             let instr = build_sti(0, -256);
             op_sti(instr, &mut vm);
             assert_eq!(vm.mem_read(0x5000), 42);
-            
         }
         #[test]
         fn sti_pc_wrapping() {
@@ -1150,7 +1147,7 @@ mod tests {
             vm.registers[PC as usize] = 0x3000;
             let instr = build_trap(0xFF);
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                 op_trap(instr, &mut vm);
+                op_trap(instr, &mut vm);
             }));
             assert_eq!(vm.registers[R7 as usize], 0x3000);
         }
@@ -1164,23 +1161,64 @@ mod tests {
     mod trapcodes {
         use super::*;
         use crate::vm::Keyboard;
+        use crate::vm::TerminalOutput;
+        use std::cell::RefCell;
+        use std::rc::Rc;
         struct MockKeyboard {
             key: Option<u16>,
         }
-
         impl Keyboard for MockKeyboard {
             fn check_key(&mut self) -> Option<u16> {
                 self.key
             }
+        }
+        struct MockOutput {
+            buffer: Rc<RefCell<Vec<u8>>>,
+        }
+        impl TerminalOutput for MockOutput {
+            fn write_char(&mut self, c: u8) {
+                self.buffer.borrow_mut().push(c);
+            }
+            fn flush(&mut self) {}
         }
 
         #[test]
         fn trap_getc_reads_character_and_updates_flags() {
             let mut vm = VM::new();
             vm.keyboard = Box::new(MockKeyboard { key: Some(0x0041) }); // 'A'
-            trap_getc(&mut vm); 
+            trap_getc(&mut vm);
             assert_eq!(vm.registers[R0 as usize], 0x0041);
-            assert_eq!(vm.registers[COND as usize], FL_P); 
+            assert_eq!(vm.registers[COND as usize], FL_P);
+        }
+        #[test]
+        fn trap_out_outputs_masked_r0_and_leaves_r0_unchanged() {
+            let mut vm = VM::new();
+            let shared_buffer = Rc::new(RefCell::new(Vec::new()));
+            vm.output = Box::new(MockOutput {
+                buffer: Rc::clone(&shared_buffer),
+            });
+            let value = 0xFF41; // 'A' with upper bits set to test masking
+            vm.registers[R0 as usize] = value;
+            trap_out(&mut vm);
+            assert_eq!(*shared_buffer.borrow(), vec![0x41]);
+            assert_eq!(vm.registers[R0 as usize], value);
+        }
+        #[test]
+        fn trap_puts_outputs_null_terminated_string_and_masks_upper_bits() {
+            let mut vm = VM::new();
+            let shared_buffer = Rc::new(RefCell::new(Vec::new()));
+            vm.output = Box::new(MockOutput {
+                buffer: Rc::clone(&shared_buffer),
+            });
+            let address = 0x3000;
+            vm.registers[R0 as usize] = address;
+            vm.memory[address as usize] = 0xFF48; // 'H' with upper bits to test masking
+            vm.memory[(address + 1) as usize] = 0xFF69; // 'i' with upper bits to test masking
+            vm.memory[(address + 2) as usize] = 0x0000; // '\0'
+            vm.memory[(address + 3) as usize] = 0xFFFF;
+            trap_puts(&mut vm);
+            assert_eq!(*shared_buffer.borrow(), vec![0x48, 0x69]);
+            assert_eq!(vm.registers[R0 as usize], address);
         }
         #[test]
         fn trap_in_reads_character_and_updates_flags() {
@@ -1190,7 +1228,22 @@ mod tests {
             assert_eq!(vm.registers[R0 as usize], 0x0041);
             assert_eq!(vm.registers[COND as usize], FL_P);
         }
-                #[test]
+        #[test]
+        fn trap_putsp_outputs_packed_string_and_handles_odd_length() {
+            let mut vm = VM::new();
+            let shared_buffer = Rc::new(RefCell::new(Vec::new()));
+            vm.output = Box::new(MockOutput {
+                buffer: Rc::clone(&shared_buffer),
+            });
+            let base_addr = 0x3000;
+            vm.registers[Registers::R0 as usize] = base_addr;
+            vm.memory[base_addr as usize] = 0x4241; // 'A' + 'B'
+            vm.memory[(base_addr + 1) as usize] = 0x0043; // 'C' + '\0'
+            trap_putsp(&mut vm);
+            assert_eq!(*shared_buffer.borrow(), vec![0x41, 0x42, 0x43]);
+            assert_eq!(vm.registers[Registers::R0 as usize], base_addr);
+        }
+        #[test]
         fn trap_halt_stops_execution() {
             let mut vm = VM::new();
             vm.running = true;
