@@ -1,25 +1,6 @@
+use crate::Registers::*;
 use crate::VM;
-use Registers::*;
-use std::io::{self, Write};
-
-#[allow(dead_code)]
-pub enum Registers {
-    R0 = 0,
-    R1,
-    R2,
-    R3,
-    R4,
-    R5,
-    R6,
-    R7,
-    PC,
-    COND,
-    COUNT,
-}
-
-pub const FL_P: u16 = 1 << 0;
-pub const FL_Z: u16 = 1 << 1;
-pub const FL_N: u16 = 1 << 2;
+use crate::{FL_N, FL_P, FL_Z};
 
 fn sign_extend(x: u16, bit_count: u8) -> u16 {
     if (x >> (bit_count - 1)) & 1 == 1 && bit_count < 16 {
@@ -236,13 +217,13 @@ fn trap_puts(vm: &mut VM) {
 }
 
 fn trap_in(vm: &mut VM) {
-    print!("Enter a character: ");
-    io::stdout().flush().unwrap();
-
+    let prompt = b"Enter a character: ";
+    for &byte in prompt {
+        vm.output.write_char(byte);
+    }
     let ch = vm.keyboard.get_key();
-    io::stdout().flush().unwrap();
-
-    vm.registers[R0 as usize] = ch;
+    vm.output.write_char(ch as u8);
+    vm.registers[R0 as usize] = ch as u16;
     vm.update_flags(R0 as usize);
 }
 
@@ -1236,12 +1217,12 @@ mod tests {
                 buffer: Rc::clone(&shared_buffer),
             });
             let base_addr = 0x3000;
-            vm.registers[Registers::R0 as usize] = base_addr;
+            vm.registers[R0 as usize] = base_addr;
             vm.memory[base_addr as usize] = 0x4241; // 'A' + 'B'
             vm.memory[(base_addr + 1) as usize] = 0x0043; // 'C' + '\0'
             trap_putsp(&mut vm);
             assert_eq!(*shared_buffer.borrow(), vec![0x41, 0x42, 0x43]);
-            assert_eq!(vm.registers[Registers::R0 as usize], base_addr);
+            assert_eq!(vm.registers[R0 as usize], base_addr);
         }
         #[test]
         fn trap_halt_stops_execution() {

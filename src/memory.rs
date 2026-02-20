@@ -1,5 +1,5 @@
 use crate::VM;
-use crate::instructions::Registers::*;
+use crate::vm::Registers::*;
 use std::fs::File;
 use std::io::{self, Read};
 

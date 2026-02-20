@@ -1,8 +1,26 @@
-use crate::instructions::Registers::COND;
+use crate::Registers::*;
 use crate::instructions::*;
 use crate::memory::{MAX_MEMORY, read_image};
 use crate::platform::PlatformKeyboard;
 use std::io::{self, Write};
+
+pub enum Registers {
+    R0 = 0,
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    R6,
+    R7,
+    PC,
+    COND,
+    COUNT,
+}
+
+pub const FL_P: u16 = 1 << 0;
+pub const FL_Z: u16 = 1 << 1;
+pub const FL_N: u16 = 1 << 2;
 
 pub const REGISTER_COUNT: usize = 10;
 
