@@ -1,5 +1,5 @@
 #[cfg(windows)]
-use crate::Keyboard;
+use crate::vm::Keyboard;
 use std::io::{self, Read};
 use windows_sys::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
 use windows_sys::Win32::System::Console::*;

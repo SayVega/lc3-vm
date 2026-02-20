@@ -40,7 +40,7 @@ impl VM {
     }
 }
 
-pub fn op_br(instr: u16, vm: &mut VM) {
+pub(crate) fn op_br(instr: u16, vm: &mut VM) {
     let pc_offset = sign_extend(instr & 0x1FF, 9);
     let cond_flag = (instr >> 9) & 0x7;
     let cond_reg = vm.registers[COND as usize];
@@ -51,7 +51,7 @@ pub fn op_br(instr: u16, vm: &mut VM) {
     }
 }
 
-pub fn op_add(instr: u16, vm: &mut VM) {
+pub(crate) fn op_add(instr: u16, vm: &mut VM) {
     let destination = ((instr >> 9) & 0x7) as usize;
     let source = ((instr >> 6) & 0x7) as usize;
     let imm_flag = (instr >> 5) & 0x1;
@@ -66,7 +66,7 @@ pub fn op_add(instr: u16, vm: &mut VM) {
     vm.update_flags(destination);
 }
 
-pub fn op_ld(instr: u16, vm: &mut VM) {
+pub(crate) fn op_ld(instr: u16, vm: &mut VM) {
     let destination = ((instr >> 9) & 0x7) as usize;
     let pc_offset = sign_extend(instr & 0x1FF, 9);
 
@@ -78,7 +78,7 @@ pub fn op_ld(instr: u16, vm: &mut VM) {
     vm.update_flags(destination);
 }
 
-pub fn op_st(instr: u16, vm: &mut VM) {
+pub(crate) fn op_st(instr: u16, vm: &mut VM) {
     let source = ((instr >> 9) & 0x7) as usize;
     let pc_offset = sign_extend(instr & 0x1FF, 9);
     let address = vm.registers[PC as usize].wrapping_add(pc_offset);
@@ -86,7 +86,7 @@ pub fn op_st(instr: u16, vm: &mut VM) {
     vm.mem_write(address, vm.registers[source]);
 }
 
-pub fn op_jsr(instr: u16, vm: &mut VM) {
+pub(crate) fn op_jsr(instr: u16, vm: &mut VM) {
     let long_flag = (instr >> 11) & 1;
     let pc = vm.registers[PC as usize];
 
@@ -101,7 +101,7 @@ pub fn op_jsr(instr: u16, vm: &mut VM) {
     vm.registers[PC as usize] = target_pc;
 }
 
-pub fn op_and(instr: u16, vm: &mut VM) {
+pub(crate) fn op_and(instr: u16, vm: &mut VM) {
     let destination = ((instr >> 9) & 0x7) as usize;
     let source1 = ((instr >> 6) & 0x7) as usize;
     let imm_flag = (instr >> 5) & 0x1;
@@ -116,7 +116,7 @@ pub fn op_and(instr: u16, vm: &mut VM) {
     vm.update_flags(destination);
 }
 
-pub fn op_ldr(instr: u16, vm: &mut VM) {
+pub(crate) fn op_ldr(instr: u16, vm: &mut VM) {
     let destination = ((instr >> 9) & 0x7) as usize;
     let base_source = ((instr >> 6) & 0x7) as usize;
     let offset = sign_extend(instr & 0x3F, 6);
@@ -129,7 +129,7 @@ pub fn op_ldr(instr: u16, vm: &mut VM) {
     vm.update_flags(destination);
 }
 
-pub fn op_str(instr: u16, vm: &mut VM) {
+pub(crate) fn op_str(instr: u16, vm: &mut VM) {
     let source = ((instr >> 9) & 0x7) as usize;
     let base_source = ((instr >> 6) & 0x7) as usize;
     let offset = sign_extend(instr & 0x3F, 6);
@@ -142,7 +142,7 @@ pub fn op_str(instr: u16, vm: &mut VM) {
     vm.mem_write(address, value);
 }
 
-pub fn op_not(instr: u16, vm: &mut VM) {
+pub(crate) fn op_not(instr: u16, vm: &mut VM) {
     let destination = ((instr >> 9) & 0x7) as usize;
     let source = ((instr >> 6) & 0x7) as usize;
 
@@ -151,7 +151,7 @@ pub fn op_not(instr: u16, vm: &mut VM) {
     vm.update_flags(destination);
 }
 
-pub fn op_ldi(instr: u16, vm: &mut VM) {
+pub(crate) fn op_ldi(instr: u16, vm: &mut VM) {
     let destination = ((instr >> 9) & 0x7) as usize;
     let pc_offset = sign_extend(instr & 0x1FF, 9);
 
@@ -163,7 +163,7 @@ pub fn op_ldi(instr: u16, vm: &mut VM) {
     vm.update_flags(destination);
 }
 
-pub fn op_sti(instr: u16, vm: &mut VM) {
+pub(crate) fn op_sti(instr: u16, vm: &mut VM) {
     let source = ((instr >> 9) & 0x7) as usize;
     let pc_offset = sign_extend(instr & 0x1FF, 9);
 
@@ -177,12 +177,12 @@ pub fn op_sti(instr: u16, vm: &mut VM) {
     vm.mem_write(indirect_address, value);
 }
 
-pub fn op_jmp(instr: u16, vm: &mut VM) {
+pub(crate) fn op_jmp(instr: u16, vm: &mut VM) {
     let source = ((instr >> 6) & 0x7) as usize;
     vm.registers[PC as usize] = vm.registers[source];
 }
 
-pub fn op_lea(instr: u16, vm: &mut VM) {
+pub(crate) fn op_lea(instr: u16, vm: &mut VM) {
     let destination = ((instr >> 9) & 0x7) as usize;
     let pc_offset = sign_extend(instr & 0x1FF, 9);
 
@@ -193,7 +193,7 @@ pub fn op_lea(instr: u16, vm: &mut VM) {
     vm.update_flags(destination);
 }
 
-pub fn op_trap(instr: u16, vm: &mut VM) {
+pub(crate) fn op_trap(instr: u16, vm: &mut VM) {
     let trap_vector = instr & 0xFF;
 
     vm.registers[R7 as usize] = vm.registers[PC as usize];
@@ -272,6 +272,7 @@ fn trap_halt(vm: &mut VM) {
     vm.running = false;
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
     mod helpers {
@@ -336,8 +337,6 @@ mod tests {
         }
     }
     mod opcodes {
-        use crate::instructions;
-
         use super::*;
 
         fn build_br(flags: u16, offset: i16) -> u16 {
@@ -404,9 +403,6 @@ mod tests {
         fn build_jmp(base: u16) -> u16 {
             (0b1100 << 12) | ((base & 0x7) << 6)
         }
-        fn build_ret() -> u16 {
-            build_jmp(7)
-        }
         fn build_lea(destination: u16, offset: i16) -> u16 {
             (0b1110 << 12) | ((destination & 0x7) << 9) | ((offset as u16) & 0x1FF)
         }
@@ -430,6 +426,24 @@ mod tests {
             let instr = build_br(0b001, -2);
             op_br(instr, &mut vm);
             assert_eq!(vm.registers[PC as usize], 0x3003);
+        }
+        #[test]
+        fn br_max_positive_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            vm.registers[COND as usize] = FL_P;
+            let instr = build_br(0b001, 255);
+            op_br(instr, &mut vm);
+            assert_eq!(vm.registers[PC as usize], 0x30FF);
+        }
+        #[test]
+        fn br_max_negative_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            vm.registers[COND as usize] = FL_P;
+            let instr = build_br(0b001, -256);
+            op_br(instr, &mut vm);
+            assert_eq!(vm.registers[PC as usize], 0x2F00);
         }
         #[test]
         fn br_no_jump_when_flag_not_set() {
@@ -565,6 +579,15 @@ mod tests {
             assert_eq!(vm.registers[0], 42);
         }
         #[test]
+        fn ld_wrapping() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x0000;
+            vm.mem_write(0xFFFF, 42);
+            let instr = build_ld(0, -1);
+            op_ld(instr, &mut vm);
+            assert_eq!(vm.registers[0], 42);
+        }
+        #[test]
         fn ld_sets_positive_flag() {
             let mut vm: VM = VM::new();
             vm.registers[PC as usize] = 0x3000;
@@ -656,7 +679,7 @@ mod tests {
             assert_eq!(vm.registers[PC as usize], 0x2FFB);
         }
         #[test]
-        fn jrs_max_positive_offset() {
+        fn jsr_max_positive_offset() {
             let mut vm = VM::new();
             vm.registers[PC as usize] = 0x3000;
             let instr = build_jsr(1023);
@@ -694,6 +717,15 @@ mod tests {
             op_jsr(instr, &mut vm);
             assert_eq!(vm.registers[PC as usize], old_r7);
             assert_eq!(vm.registers[R7 as usize], old_pc);
+        }
+        #[test]
+        fn jsr_wrapping() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x0000;
+            let instr = build_jsr(-1);
+            op_jsr(instr, &mut vm);
+            assert_eq!(vm.registers[R7 as usize], 0x0000);
+            assert_eq!(vm.registers[PC as usize], 0xFFFF);
         }
         #[test]
         fn and_reg_happy_path() {
@@ -858,6 +890,24 @@ mod tests {
             assert_eq!(vm.mem_read(0x2FFF), 42);
         }
         #[test]
+        fn str_max_positive_offset() {
+            let mut vm = VM::new();
+            vm.registers[0] = 42;
+            vm.registers[1] = 0x3000;
+            let instr = build_str(0, 1, 31);
+            op_str(instr, &mut vm);
+            assert_eq!(vm.mem_read(0x301F), 42);
+        }
+        #[test]
+        fn str_max_negative_offset() {
+            let mut vm = VM::new();
+            vm.registers[0] = 42;
+            vm.registers[1] = 0x3000;
+            let instr = build_str(0, 1, -32);
+            op_str(instr, &mut vm);
+            assert_eq!(vm.mem_read(0x2FE0), 42);
+        }
+        #[test]
         fn str_wrapping() {
             let mut vm = VM::new();
             vm.registers[0] = 42;
@@ -922,6 +972,26 @@ mod tests {
             assert_eq!(vm.registers[0], 42);
         }
         #[test]
+        fn ldi_max_positive_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            vm.mem_write(0x30FF, 0x4000);
+            vm.mem_write(0x4000, 42);
+            let instr = build_ldi(0, 255);
+            op_ldi(instr, &mut vm);
+            assert_eq!(vm.registers[0], 42);
+        }
+        #[test]
+        fn ldi_max_negative_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            vm.mem_write(0x2F00, 0x5000);
+            vm.mem_write(0x5000, 42);
+            let instr = build_ldi(0, -256);
+            op_ldi(instr, &mut vm);
+            assert_eq!(vm.registers[0], 42);
+        }
+        #[test]
         fn ldi_wrapping() {
             let mut vm = VM::new();
             vm.registers[PC as usize] = 0x0000;
@@ -972,6 +1042,27 @@ mod tests {
             assert_eq!(vm.mem_read(0x5000), 42);
         }
         #[test]
+        fn sti_max_positive_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            vm.registers[0] = 42;
+            vm.mem_write(0x30FF, 0x4000);
+            let instr = build_sti(0, 255);
+            op_sti(instr, &mut vm);
+            assert_eq!(vm.mem_read(0x4000), 42);
+        }
+        #[test]
+        fn sti_max_negative_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            vm.registers[0] = 42;
+            vm.mem_write(0x2F00, 0x5000);
+            let instr = build_sti(0, -256);
+            op_sti(instr, &mut vm);
+            assert_eq!(vm.mem_read(0x5000), 42);
+            
+        }
+        #[test]
         fn sti_pc_wrapping() {
             let mut vm = VM::new();
             vm.registers[PC as usize] = 0x0000;
@@ -1006,6 +1097,22 @@ mod tests {
             assert_eq!(vm.registers[0], 0x2FFF);
         }
         #[test]
+        fn lea_max_positive_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            let instr = build_lea(0, 255);
+            op_lea(instr, &mut vm);
+            assert_eq!(vm.registers[0], 0x30FF);
+        }
+        #[test]
+        fn lea_max_negative_offset() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            let instr = build_lea(0, -256);
+            op_lea(instr, &mut vm);
+            assert_eq!(vm.registers[0], 0x2F00);
+        }
+        #[test]
         fn lea_wrapping() {
             let mut vm = VM::new();
             vm.registers[PC as usize] = 0x0000;
@@ -1038,11 +1145,57 @@ mod tests {
             assert_eq!(vm.registers[COND as usize], FL_Z);
         }
         #[test]
+        fn trap_saves_pc_in_r7() {
+            let mut vm = VM::new();
+            vm.registers[PC as usize] = 0x3000;
+            let instr = build_trap(0xFF);
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                 op_trap(instr, &mut vm);
+            }));
+            assert_eq!(vm.registers[R7 as usize], 0x3000);
+        }
+        #[test]
         #[should_panic]
         fn trap_unknown_vector_panics() {
             let mut vm = VM::new();
-            let instr = build_trap(0x99);
-            op_trap(instr, &mut vm);
+            op_trap(build_trap(0xFF), &mut vm);
+        }
+    }
+    mod trapcodes {
+        use super::*;
+        use crate::vm::Keyboard;
+        struct MockKeyboard {
+            key: Option<u16>,
+        }
+
+        impl Keyboard for MockKeyboard {
+            fn check_key(&mut self) -> Option<u16> {
+                self.key
+            }
+        }
+
+        #[test]
+        fn trap_getc_reads_character_and_updates_flags() {
+            let mut vm = VM::new();
+            vm.keyboard = Box::new(MockKeyboard { key: Some(0x0041) }); // 'A'
+            trap_getc(&mut vm); 
+            assert_eq!(vm.registers[R0 as usize], 0x0041);
+            assert_eq!(vm.registers[COND as usize], FL_P); 
+        }
+        #[test]
+        fn trap_in_reads_character_and_updates_flags() {
+            let mut vm = VM::new();
+            vm.keyboard = Box::new(MockKeyboard { key: Some(0x0041) }); // 'A'
+            trap_in(&mut vm);
+            assert_eq!(vm.registers[R0 as usize], 0x0041);
+            assert_eq!(vm.registers[COND as usize], FL_P);
+        }
+                #[test]
+        fn trap_halt_stops_execution() {
+            let mut vm = VM::new();
+            vm.running = true;
+            trap_halt(&mut vm);
+            assert_eq!(vm.running, false);
         }
     }
 }
