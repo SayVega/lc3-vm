@@ -7,13 +7,15 @@ fn main() {
     let mut vm = VM::new();
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        println!("lc3 [image-file1] ...");
+        eprintln!("Error: Missing input file.");
+        eprintln!("Usage: lc3-vm <path_to_image.obj>");
+        eprintln!("Example: make run ARGS=\"./image.obj\"");
         process::exit(2);
     }
 
     for image_path in &args[1..] {
         if vm.load_image(image_path).is_err() {
-            println!("failed to load image: {}", image_path);
+            eprintln!("Error: File '{}' not found.", image_path);
             process::exit(1);
         }
     }

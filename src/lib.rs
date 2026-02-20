@@ -1,3 +1,4 @@
+#![doc = include_str!("../docs/README.md")]
 mod instructions;
 mod memory;
 mod platform;
