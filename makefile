@@ -1,16 +1,13 @@
-.PHONY: build run test fmt clean
+.PHONY: build run test fmt
 
 build:
-	cargo build --release
+	cargo build
 
 run:
-	cargo run --release -- $(ARGS)
+	cargo run
 
 test:
 	cargo test
 
 fmt:
 	cargo fmt --all -- --check
-
-clean:
-	cargo clean
